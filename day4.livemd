@@ -285,7 +285,7 @@ win_counts =
   input
   |> String.split("\n", trim: true)
   |> Enum.map(fn line ->
-    [a, b] =
+    [winners, ours] =
       line
       |> String.split(": ")
       |> List.last()
@@ -297,7 +297,7 @@ win_counts =
         |> MapSet.new()
       end)
 
-    MapSet.intersection(a, b)
+    MapSet.intersection(winners, ours)
     |> MapSet.size()
   end)
 
