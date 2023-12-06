@@ -1,0 +1,102 @@
+<!-- livebook:{"persist_outputs":true} -->
+
+# Advent of Code 2023 - Day 6
+
+## Sample
+
+```elixir
+sample = """
+Time:      7  15   30
+Distance:  9  40  200
+"""
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+"Time:      7  15   30\nDistance:  9  40  200\n"
+```
+
+## Input
+
+```elixir
+input = """
+Time:        40     82     84     92
+Distance:   233   1011   1110   1487
+"""
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+"Time:        40     82     84     92\nDistance:   233   1011   1110   1487\n"
+```
+
+## Part 1
+
+```elixir
+quad = fn t, r ->
+  break_even = (t - :math.sqrt(t * t - 4 * r)) / 2
+  ceiling = ceil(break_even)
+
+  if ceiling > break_even do
+    ceiling
+  else
+    break_even + 1
+  end
+end
+
+[times, records] =
+  input
+  |> String.split("\n", trim: true)
+  |> Enum.map(fn line ->
+    [_label, values] = String.split(line, ~r/:\s+/)
+    values |> String.split(~r/\s+/) |> Enum.map(&String.to_integer/1)
+  end)
+
+races = Enum.zip(times, records)
+
+Enum.map(races, fn {time, record} ->
+  x = quad.(time, record)
+  time - 2 * x + 1
+end)
+|> Enum.product()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+3316275
+```
+
+## Part 2
+
+```elixir
+quad = fn t, r ->
+  break_even = (t - :math.sqrt(t * t - 4 * r)) / 2
+  ceiling = ceil(break_even)
+
+  if ceiling > break_even do
+    ceiling
+  else
+    break_even + 1
+  end
+end
+
+[time, record] =
+  input
+  |> String.split("\n", trim: true)
+  |> Enum.map(fn line ->
+    [_label, values] = String.split(line, ~r/:\s+/)
+    values |> String.replace(~r/\s+/, "") |> String.to_integer()
+  end)
+
+x = quad.(time, record)
+time - x * 2 + 1
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+27102791
+```
