@@ -287,8 +287,9 @@ starts =
 
 starts
 |> Enum.map(fn start ->
-  Part1.energize([start], MapSet.new(), grid, max_x, max_y)
+  Task.async(fn -> Part1.energize([start], MapSet.new(), grid, max_x, max_y) end)
 end)
+|> Enum.map(&Task.await/1)
 |> Enum.max()
 ```
 
