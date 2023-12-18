@@ -811,8 +811,6 @@ map =
 
 {minx, maxx, miny, maxy} = Part1.extents(map)
 
-IO.inspect({minx, maxx, miny, maxy})
-
 # miny..maxy
 # |> Enum.map(fn y ->
 #   minx..maxx
@@ -828,12 +826,6 @@ outside =
   |> MapSet.size()
 
 (maxx - minx + 1) * (maxy - miny + 1) - outside
-```
-
-<!-- livebook:{"output":true} -->
-
-```
-{-41, 341, -274, 4}
 ```
 
 <!-- livebook:{"output":true} -->
