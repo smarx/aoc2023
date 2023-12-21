@@ -1,0 +1,401 @@
+<!-- livebook:{"persist_outputs":true} -->
+
+# Advent of Code 2023 - Day 20
+
+## Sample
+
+```elixir
+sample = """
+broadcaster -> a
+%a -> inv, con
+&inv -> b
+%b -> con
+&con -> output
+"""
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+"broadcaster -> a\n%a -> inv, con\n&inv -> b\n%b -> con\n&con -> output\n"
+```
+
+## Input
+
+```elixir
+input = """
+%dm -> jz, ct
+&ft -> rx
+%hc -> kh
+%kg -> gd, sl
+&sl -> bs, bq, ts, zd, gk, xx, lp
+%rf -> xk, jz
+%zd -> kg
+%dp -> ql, pq
+%ss -> pq, mb
+&rr -> hc, lt, kh, fv, tc, vg
+%hv -> nh
+%nh -> pq, xm
+&jz -> bn, vz, xz
+%vf -> nc, sl
+%gk -> pc
+%bs -> gk
+&pq -> tb, qh, ls, hv, ql
+%jb -> rr, hc
+%fv -> cd, rr
+&vz -> ft
+%mm -> jr, rr
+%vg -> mm
+%cd -> tc, rr
+&bq -> ft
+%xg -> pb, jz
+%xx -> zd
+%ls -> tb, pq
+%pb -> jz, rz
+%tc -> vp
+%kh -> ck
+%lp -> xx
+%tb -> ss
+%qk -> jz, xg
+%xz -> dm
+%jr -> rb, rr
+%mb -> hv, pq
+&qh -> ft
+&lt -> ft
+%rb -> rr
+%pc -> hr, sl
+%hr -> vf, sl
+%gd -> bs, sl
+%xm -> dp, pq
+%ct -> jz, rj
+%ck -> vg, rr
+%cr -> jz, rf
+%bn -> xz, jz
+%vp -> rr, jb
+%hl -> pq, vj
+%ts -> lp, sl
+%rz -> jz, cr
+%ql -> tr
+%xk -> jz
+%vj -> pq
+%tr -> pq, hl
+broadcaster -> ls, fv, ts, bn
+%nc -> sl
+%rj -> jz, qk
+"""
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+"%dm -> jz, ct\n&ft -> rx\n%hc -> kh\n%kg -> gd, sl\n&sl -> bs, bq, ts, zd, gk, xx, lp\n%rf -> xk, jz\n%zd -> kg\n%dp -> ql, pq\n%ss -> pq, mb\n&rr -> hc, lt, kh, fv, tc, vg\n%hv -> nh\n%nh -> pq, xm\n&jz -> bn, vz, xz\n%vf -> nc, sl\n%gk -> pc\n%bs -> gk\n&pq -> tb, qh, ls, hv, ql\n%jb -> rr, hc\n%fv -> cd, rr\n&vz -> ft\n%mm -> jr, rr\n%vg -> mm\n%cd -> tc, rr\n&bq -> ft\n%xg -> pb, jz\n%xx -> zd\n%ls -> tb, pq\n%pb -> jz, rz\n%tc -> vp\n%kh -> ck\n%lp -> xx\n%tb -> ss\n%qk -> jz, xg\n%xz -> dm\n%jr -> rb, rr\n%mb -> hv, pq\n&qh -> ft\n&lt -> ft\n%rb -> rr\n%pc -> hr, sl\n%hr -> vf, sl\n%gd -> bs, sl\n%xm -> dp, pq\n%ct -> jz, rj\n%ck -> vg, rr\n%cr -> jz, rf\n%bn -> xz, jz\n%vp -> rr, jb\n%hl -> pq, vj\n%ts -> lp, sl\n%rz -> jz, cr\n%ql -> tr\n%xk -> jz\n%vj -> pq\n%tr -> pq, hl\nbroadcaster -> ls, fv, ts, bn\n%nc -> sl\n%rj -> jz, qk\n"
+```
+
+## Part 1
+
+```elixir
+defmodule Machine do
+  defstruct [:type, state: nil, outputs: []]
+end
+
+defmodule Part1 do
+  def parse(input) do
+    machines =
+      input
+      |> String.split("\n", trim: true)
+      |> Enum.map(&parse_machine/1)
+
+    inputs =
+      Enum.reduce(machines, %{}, fn {name, _, outputs}, acc ->
+        Enum.reduce(outputs, acc, fn output, acc ->
+          Map.put(acc, output, [name | Map.get(acc, output, [])])
+        end)
+      end)
+
+    machines
+    |> Enum.map(fn {name, type, outputs} ->
+      {name, init(type, outputs, Map.get(inputs, name, []))}
+    end)
+    |> Enum.into(Map.new())
+  end
+
+  def parse_machine(machine) do
+    [name, outputs] = String.split(machine, " -> ")
+    outputs = String.split(outputs, ", ")
+
+    {type, name} =
+      case String.first(name) do
+        "%" -> {:flip_flop, String.slice(name, 1..-1)}
+        "&" -> {:conjunction, String.slice(name, 1..-1)}
+        _ -> {String.to_atom(name), name}
+      end
+
+    {name, type, outputs}
+  end
+
+  def init(type, outputs, inputs)
+
+  def init(:broadcaster, outputs, _inputs),
+    do: %Machine{type: :broadcaster, state: nil, outputs: outputs}
+
+  def init(:flip_flop, outputs, _inputs),
+    do: %Machine{type: :flip_flop, state: :off, outputs: outputs}
+
+  def init(:conjunction, outputs, inputs) do
+    %Machine{
+      type: :conjunction,
+      state:
+        inputs
+        |> Enum.map(&{&1, :low})
+        |> Enum.into(Map.new()),
+      outputs: outputs
+    }
+  end
+
+  def process_signal(machine, _from, signal) when machine.type == :broadcaster do
+    {machine, signal}
+  end
+
+  def process_signal(machine, _from, signal) when {machine.type, signal} == {:flip_flop, :low} do
+    case machine.state do
+      :off -> {%{machine | state: :on}, :high}
+      :on -> {%{machine | state: :off}, :low}
+    end
+  end
+
+  def process_signal(machine, _from, signal) when {machine.type, signal} == {:flip_flop, :high} do
+    {machine, nil}
+  end
+
+  def process_signal(machine, from, signal) when machine.type == :conjunction do
+    machine = %{machine | state: %{machine.state | from => signal}}
+
+    all_high =
+      machine.state
+      |> Map.values()
+      |> Enum.all?(&(&1 == :high))
+
+    if all_high do
+      {machine, :low}
+    else
+      {machine, :high}
+    end
+  end
+
+  def process_signal(nil, _from, _signal), do: {nil, nil}
+
+  def process(machines, q \\ [{"button", "broadcaster", :low}], low_count \\ 0, high_count \\ 0)
+  def process(machines, [], low_count, high_count), do: {machines, low_count, high_count}
+
+  def process(machines, q, low_count, high_count) do
+    [{from, to, signal} | tail] = q
+
+    # IO.puts(from <> " -" <> Atom.to_string(signal) <> "-> " <> to)
+
+    machine = machines[to]
+
+    {machine, out} = process_signal(machine, from, signal)
+    machines = Map.put(machines, to, machine)
+
+    {low_count, high_count} =
+      case signal do
+        :low -> {low_count + 1, high_count}
+        :high -> {low_count, high_count + 1}
+      end
+
+    if out == nil do
+      process(machines, tail, low_count, high_count)
+    else
+      process(machines, tail ++ Enum.map(machine.outputs, &{to, &1, out}), low_count, high_count)
+    end
+  end
+end
+
+machines = Part1.parse(input)
+
+{_, low, high} =
+  Enum.reduce(
+    1..1000,
+    {machines, 0, 0},
+    fn _, {machines, low_count, high_count} ->
+      {machines, new_low_count, new_high_count} = Part1.process(machines)
+      {machines, low_count + new_low_count, high_count + new_high_count}
+    end
+  )
+
+low * high
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+737679780
+```
+
+## Part 2
+
+```elixir
+defmodule Math do
+  defp gcd(a, 0), do: a
+  defp gcd(a, b), do: gcd(b, rem(a, b))
+
+  def lcm(a, b) do
+    div(a * b, gcd(a, b))
+  end
+
+  def lcm(numbers) do
+    Enum.reduce_while(numbers, 1, fn n, acc ->
+      lcm_result = lcm(acc, n)
+      {:cont, lcm_result}
+    end)
+  end
+end
+
+defmodule Part2 do
+  def parse(input) do
+    machines =
+      input
+      |> String.split("\n", trim: true)
+      |> Enum.map(&parse_machine/1)
+
+    inputs =
+      Enum.reduce(machines, %{}, fn {name, _, outputs}, acc ->
+        Enum.reduce(outputs, acc, fn output, acc ->
+          Map.put(acc, output, [name | Map.get(acc, output, [])])
+        end)
+      end)
+
+    machines
+    |> Enum.map(fn {name, type, outputs} ->
+      {name, init(type, outputs, Map.get(inputs, name, []))}
+    end)
+    |> Enum.into(Map.new())
+  end
+
+  def parse_machine(machine) do
+    [name, outputs] = String.split(machine, " -> ")
+    outputs = String.split(outputs, ", ")
+
+    {type, name} =
+      case String.first(name) do
+        "%" -> {:flip_flop, String.slice(name, 1..-1)}
+        "&" -> {:conjunction, String.slice(name, 1..-1)}
+        _ -> {String.to_atom(name), name}
+      end
+
+    {name, type, outputs}
+  end
+
+  def init(type, outputs, inputs)
+
+  def init(:broadcaster, outputs, _inputs),
+    do: %Machine{type: :broadcaster, state: nil, outputs: outputs}
+
+  def init(:flip_flop, outputs, _inputs),
+    do: %Machine{type: :flip_flop, state: :off, outputs: outputs}
+
+  def init(:conjunction, outputs, inputs) do
+    %Machine{
+      type: :conjunction,
+      state:
+        inputs
+        |> Enum.map(&{&1, :low})
+        |> Enum.into(Map.new()),
+      outputs: outputs
+    }
+  end
+
+  def process_signal(machine, _from, signal) when machine.type == :broadcaster do
+    {machine, signal}
+  end
+
+  def process_signal(machine, _from, signal) when {machine.type, signal} == {:flip_flop, :low} do
+    case machine.state do
+      :off -> {%{machine | state: :on}, :high}
+      :on -> {%{machine | state: :off}, :low}
+    end
+  end
+
+  def process_signal(machine, _from, signal) when {machine.type, signal} == {:flip_flop, :high} do
+    {machine, nil}
+  end
+
+  def process_signal(machine, from, signal) when machine.type == :conjunction do
+    machine = %{machine | state: %{machine.state | from => signal}}
+
+    all_high =
+      machine.state
+      |> Map.values()
+      |> Enum.all?(&(&1 == :high))
+
+    if all_high do
+      {machine, :low}
+    else
+      {machine, :high}
+    end
+  end
+
+  def process_signal(nil, _from, _signal), do: {nil, nil}
+
+  def process(machines, q \\ [{"button", "broadcaster", :low}], signals \\ [])
+  def process(machines, [], signals), do: {machines, signals}
+
+  def process(machines, q, signals) do
+    [{from, to, signal} | tail] = q
+
+    signals = signals ++ [{from, to, signal}]
+
+    machine = machines[to]
+
+    {machine, out} = process_signal(machine, from, signal)
+    machines = Map.put(machines, to, machine)
+
+    if out == nil do
+      process(machines, tail, signals)
+    else
+      process(machines, tail ++ Enum.map(machine.outputs, &{to, &1, out}), signals)
+    end
+  end
+end
+
+machines = Part2.parse(input)
+
+{machines, signals} = Part2.process(machines)
+
+firsts = Map.new()
+
+{machines, firsts} =
+  1..4092
+  |> Enum.reduce(
+    {machines, firsts},
+    fn n, {machines, firsts} ->
+      {machines, signals} = Part2.process(machines)
+
+      firsts =
+        signals
+        |> Enum.reduce(firsts, fn {from, _to, signal}, firsts ->
+          if from in ["vz", "bq", "qh", "lt"] && signal == :high and !Map.has_key?(firsts, from) do
+            # Some off-by-one error I don't understand
+            Map.put(firsts, from, n + 1)
+          else
+            firsts
+          end
+        end)
+
+      {machines, firsts}
+    end
+  )
+
+# firsts
+# |> Map.to_list
+# |> Enum.sort(fn a, b -> elem(a, 1) < elem(b, 1) end)
+# |> Enum.map(&IO.inspect/1)
+
+firsts |> Map.values() |> Math.lcm()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+227411378431763
+```
