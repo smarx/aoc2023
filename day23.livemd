@@ -404,3 +404,9 @@ end
 Part2.parse(input)
 |> Part2.solve()
 ```
+
+<!-- livebook:{"output":true} -->
+
+```
+6350
+```
