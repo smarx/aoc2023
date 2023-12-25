@@ -1,5 +1,3 @@
-import re
-
 import z3
 
 sample = """
